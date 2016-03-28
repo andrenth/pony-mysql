@@ -18,15 +18,17 @@ class MyNotify is Notify
 
 actor Main
   new create(env: Env) =>
-    let mysql = MySQL(MyNotify(env)).tcp("host", "user", "pass", "db")
-    mysql(SetCharsetName) = "utf8"
-    let query = "SELECT * FROM some_table where some_field = ?"
-    let some_field: QueryParam = "some_value"
-    with stmt = mysql.prepare(query) do
-      with res = stmt.execute([some_field]) do
-        match res.fetch_map()
-        | let row: Map[String, QueryResult] => _do_something(row)
-        | None => env.out.print("no more results")
+    try
+      let mysql = MySQL(MyNotify(env)).tcp("host", "user", "pass", "db")
+      mysql(SetCharsetName) = "utf8"
+      let query = "SELECT * FROM some_table where some_field = ?"
+      let some_field: QueryParam = "some_value"
+      with stmt = mysql.prepare(query) do
+        with res = stmt.execute([some_field]) do
+          match res.fetch_map()
+          | let row: Map[String, QueryResult] => _do_something(row)
+          | None => env.out.print("no more results")
+          end
         end
       end
     end
@@ -35,7 +37,7 @@ actor Main
     ...
 ```
 
-If you don't want to use a `with` expression you must call `close()` on `Stmt`
+If you don't want to use `with` expressions you must call `close()` on `Stmt`
 and `Result` objects to free their resources.
 
 To run the unit tests, export environment variables `MYPONY_HOST`, `MYPONY_USER`
