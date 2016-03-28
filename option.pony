@@ -4,9 +4,9 @@ primitive NamedPipe                 fun apply(): USize => 2
 primitive InitCommand               fun apply(): USize => 3
 primitive ReadDefaultFile           fun apply(): USize => 4
 primitive ReadDefaultGroup          fun apply(): USize => 5
-primitive SetCharsetDir             fun apply(): USize => 6
-primitive SetCharsetName            fun apply(): USize => 7
-primitive LocalInfile               fun apply(): USize => 8
+primitive CharsetDir                fun apply(): USize => 6
+primitive CharsetName               fun apply(): USize => 7
+primitive LocalInFile               fun apply(): USize => 8
 primitive Protocol                  fun apply(): USize => 9
 primitive SharedMemoryBaseName      fun apply(): USize => 10
 primitive ReadTimeout               fun apply(): USize => 11
@@ -15,7 +15,7 @@ primitive UseResult                 fun apply(): USize => 13
 primitive UseRemoteConnection       fun apply(): USize => 14
 primitive UseEmbeddedConnection     fun apply(): USize => 15
 primitive GuessConnection           fun apply(): USize => 16
-primitive SetClientIP               fun apply(): USize => 17
+primitive ClientIP                  fun apply(): USize => 17
 primitive SecureAuth                fun apply(): USize => 18
 primitive ReportDataTruncation      fun apply(): USize => 19
 primitive Reconnect                 fun apply(): USize => 20
@@ -44,9 +44,9 @@ type ClientOption is
   | InitCommand
   | ReadDefaultFile
   | ReadDefaultGroup
-  | SetCharsetDir
-  | SetCharsetName
-  | LocalInfile
+  | CharsetDir
+  | CharsetName
+  | LocalInFile
   | Protocol
   | SharedMemoryBaseName
   | ReadTimeout
@@ -55,7 +55,7 @@ type ClientOption is
   | UseRemoteConnection
   | UseEmbeddedConnection
   | GuessConnection
-  | SetClientIP
+  | ClientIP
   | SecureAuth
   | ReportDataTruncation
   | Reconnect
