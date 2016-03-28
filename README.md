@@ -14,7 +14,7 @@ class MyNotify is Notify
     _env = env
 
   fun fail(err: Error) =>
-    _env.out.print(err.method() + " failed with code " + err.string())
+    _env.out.print(err.method() + " failed: " + err.string())
 
 actor Main
   new create(env: Env) =>
