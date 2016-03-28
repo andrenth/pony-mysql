@@ -19,9 +19,10 @@ class MyNotify is Notify
 actor Main
   new create(env: Env) =>
     let mysql = MySQL(MyNotify(env)).tcp("host", "user", "pass", "db")
-    let query = "SELECT * FROM some_table"
+    let query = "SELECT * FROM some_table where some_field = ?"
+    let some_field: QueryParam = "some_value"
     with stmt = mysql.prepare(query) do
-      with res = stmt.execute(params) do
+      with res = stmt.execute([some_field]) do
         match res.fetch_map()
         | let row: Map[String, QueryResult] => _do_something(row)
         | None => env.out.print("no more results")
