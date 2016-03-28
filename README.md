@@ -23,8 +23,9 @@ actor Main
     with stmt = mysql.prepare(query) do
       with res = stmt.execute(params) do
         match res.fetch_map()
-        | let m: Map[String, QueryResult] => _do_something(m)
+        | let row: Map[String, QueryResult] => _do_something(row)
         | None => env.out.print("no more results")
+        end
       end
     end
 
