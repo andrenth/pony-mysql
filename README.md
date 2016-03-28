@@ -19,6 +19,7 @@ class MyNotify is Notify
 actor Main
   new create(env: Env) =>
     let mysql = MySQL(MyNotify(env)).tcp("host", "user", "pass", "db")
+    mysql(SetCharsetName) = "utf8"
     let query = "SELECT * FROM some_table where some_field = ?"
     let some_field: QueryParam = "some_value"
     with stmt = mysql.prepare(query) do
