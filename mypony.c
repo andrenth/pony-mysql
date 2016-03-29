@@ -1,9 +1,7 @@
 #include <mysql/mysql.h>
-#include <pthread.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 
 struct mypony_bind {
     unsigned long  n;
