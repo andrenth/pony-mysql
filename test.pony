@@ -173,7 +173,7 @@ class iso _TestOption is UnitTest
   fun ref apply(h: TestHelper) ? =>
     let mysql = DB.connect(h.env, "mypony")
     mysql(ConnectTimeout) = I32(42)
-    mysql(SetCharsetName) = "utf8"
+    mysql(CharsetName) = "utf8"
     let query = "
       SELECT
         VARIABLE_VALUE
