@@ -44,7 +44,7 @@ class Stmt
     @mysql_stmt_errno[U32](_stmt)
 
   fun error_message(): String =>
-    Util.copy_cstring(@mysql_stmt_error[Pointer[U8] val](_stmt))
+    Util.from_cstring(@mysql_stmt_error[Pointer[U8] iso^](_stmt))
 
   fun _bind_params(args: Array[QueryParam]) ? =>
     for (i, arg) in args.pairs() do
@@ -94,8 +94,6 @@ class Stmt
     error
 
   fun close() =>
-    @mypony_bind_free[None](_params)
-    @mypony_bind_free[None](_result)
     @mysql_free_result[None](_res)
     @mysql_stmt_close[None](_stmt)
 

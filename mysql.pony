@@ -115,7 +115,7 @@ class MySQL
     @mysql_errno[U32](_mysql)
 
   fun error_message(): String =>
-    Util.copy_cstring(@mysql_error[Pointer[U8] val](_mysql))
+    Util.from_cstring(@mysql_error[Pointer[U8] iso^](_mysql))
 
   fun ref _mysql_init() ? =>
     _mysql = @mysql_init[Pointer[_MySQL]](_mysql)

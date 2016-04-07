@@ -89,7 +89,7 @@ class Result
     let row = Map[String, QueryResult]
     for i in Range(0, n) do
       let field = @mysql_fetch_field_direct[Pointer[_Field]](_res, i)
-      let name = Util.copy_cstring(@mypony_field_name[Pointer[U8] val](field))
+      let name = Util.from_cstring(@mypony_field_name[Pointer[U8] iso^](field))
       if @mypony_bind_is_null[Bool](_result, i) then
         row(name) = None
       else
@@ -153,13 +153,13 @@ class Result
     | _T.bit() =>
         var len: USize = 0
         let cs =
-          @mypony_string_result[Pointer[U8] val](_result, addressof len, i)
-        Util.copy_cstring(cs, len)
+          @mypony_string_result[Pointer[U8] iso^](_result, addressof len, i)
+        Util.from_cstring(consume cs, len)
     | _T.tiny_blob() | _T.medium_blob() | _T.long_blob() | _T.blob() =>
         var len: USize = 0
         let cs =
-          @mypony_string_result[Pointer[U8] val](_result, addressof len, i)
-        Util.copy_cstring(cs, len).array()
+          @mypony_string_result[Pointer[U8] iso^](_result, addressof len, i)
+        Util.from_cstring(consume cs, len).array()
     else
       _notify.fail(Error("fetch", "unknown type " + t.string()))
       error
@@ -179,14 +179,7 @@ class Result
     @mysql_stmt_errno[U32](_stmt)
 
   fun error_message(): String =>
-    Util.copy_cstring(@mysql_stmt_error[Pointer[U8] val](_stmt))
-
-  fun close() =>
-    @mypony_bind_buffers_free[None](_params)
-    @mypony_bind_buffers_free[None](_result)
-
-  fun dispose() =>
-    close()
+    Util.from_cstring(@mysql_stmt_error[Pointer[U8] iso^](_stmt))
 
 class ResultMapIter
   let _result: Result
@@ -213,9 +206,6 @@ class ResultMapIter
       error
     end
 
-  fun dispose() =>
-    _result.close()
-
 class ResultArrayIter
   let _result: Result
   let _notify: Notify
@@ -240,6 +230,3 @@ class ResultArrayIter
       _notify.fail(Error("next", "fetch_array returned None in iterator"))
       error
     end
-
-  fun dispose() =>
-    _result.close()

@@ -39,10 +39,9 @@ class DB
            f: ({(Result) ?} | None) = None) ? =>
     let mysql = DB.connect(env, db)
     with stmt = mysql.prepare(query) do
-      with res = stmt.execute(params) do
-        match f
-        | let g: {(Result)} => g(res)
-        end
+      let res = stmt.execute(params)
+      match f
+      | let f': {(Result)} => f'(res)
       end
     end
 

@@ -1,4 +1,5 @@
 #include <mysql/mysql.h>
+#include <pony.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,39 +15,18 @@ struct mypony_bind {
 struct mypony_bind *
 mypony_alloc_bind(unsigned long count)
 {
-    struct mypony_bind *mbp = malloc(sizeof *mbp);
+    pony_ctx_t *ctx = pony_ctx();
+    struct mypony_bind *mbp = pony_alloc(ctx, sizeof *mbp);
 
     if (mbp == NULL)
         return NULL;
 
-    mbp->n = count;
-    mbp->bind = calloc(count, sizeof(MYSQL_BIND));
-    mbp->length = calloc(count, sizeof(unsigned long));
-    mbp->is_null = calloc(count, sizeof(my_bool));
+    mbp->n       = count;
+    mbp->bind    = pony_alloc(ctx, count * sizeof(MYSQL_BIND));
+    mbp->length  = pony_alloc(ctx, count * sizeof(unsigned long));
+    mbp->is_null = pony_alloc(ctx, count * sizeof(my_bool));
 
     return mbp;
-}
-
-void
-mypony_bind_buffers_free(struct mypony_bind *mbp)
-{
-    unsigned long i;
-
-    if (mbp == NULL)
-        return;
-    for (i = 0; i < mbp->n; i++)
-        free(mbp->bind[i].buffer);
-}
-
-void
-mypony_bind_free(struct mypony_bind *mbp)
-{
-    if (mbp == NULL)
-        return;
-    free(mbp->bind);
-    free(mbp->length);
-    free(mbp->is_null);
-    free(mbp);
 }
 
 unsigned long
@@ -114,12 +94,14 @@ int
 mypony_bind_result(MYSQL_STMT *stmt, MYSQL_RES *res, struct mypony_bind *result)
 {
     unsigned long i;
+    pony_ctx_t *ctx;
 
     if (res == NULL)
         return 0;
     if (mysql_stmt_store_result(stmt))
         return -1;
 
+    ctx = pony_ctx();
     for (i = 0; i < result->n; i++) {
         MYSQL_BIND *bind = &result->bind[i];
         MYSQL_FIELD *field = mysql_fetch_field_direct(res, i);
@@ -133,21 +115,21 @@ mypony_bind_result(MYSQL_STMT *stmt, MYSQL_RES *res, struct mypony_bind *result)
         case MYSQL_TYPE_TINY:
         case MYSQL_TYPE_YEAR:
             bind->buffer_length = 1;
-            bind->buffer = calloc(1, bind->buffer_length);
+            bind->buffer = pony_alloc(ctx, bind->buffer_length);
             break;
         case MYSQL_TYPE_SHORT:
             bind->buffer_length = 2;
-            bind->buffer = calloc(1, bind->buffer_length);
+            bind->buffer = pony_alloc(ctx, bind->buffer_length);
         case MYSQL_TYPE_INT24:
         case MYSQL_TYPE_LONG:
         case MYSQL_TYPE_FLOAT:
             bind->buffer_length = 4;
-            bind->buffer = calloc(1, bind->buffer_length);
+            bind->buffer = pony_alloc(ctx, bind->buffer_length);
             break;
         case MYSQL_TYPE_LONGLONG:
         case MYSQL_TYPE_DOUBLE:
             bind->buffer_length = 8;
-            bind->buffer = calloc(1, 8);
+            bind->buffer = pony_alloc(ctx, bind->buffer_length);
             break;
         case MYSQL_TYPE_DECIMAL:
         case MYSQL_TYPE_STRING:
@@ -158,15 +140,15 @@ mypony_bind_result(MYSQL_STMT *stmt, MYSQL_RES *res, struct mypony_bind *result)
         case MYSQL_TYPE_LONG_BLOB:
         case MYSQL_TYPE_NEWDECIMAL:
         case MYSQL_TYPE_BIT:
-            bind->buffer = calloc(field->max_length, sizeof(char));
-            bind->buffer_length = field->max_length;
+            bind->buffer_length = field->max_length * sizeof(char);
+            bind->buffer = pony_alloc(ctx, bind->buffer_length);
             break;
         case MYSQL_TYPE_TIME:
         case MYSQL_TYPE_DATE:
         case MYSQL_TYPE_DATETIME:
         case MYSQL_TYPE_TIMESTAMP:
             bind->buffer_length = sizeof(MYSQL_TIME);
-            bind->buffer = calloc(1, bind->buffer_length);
+            bind->buffer = pony_alloc(ctx, bind->buffer_length);
             break;
         default:
             return -1;
