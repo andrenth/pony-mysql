@@ -10,7 +10,18 @@ primitive _Field
 primitive _Stmt
 primitive _Prep
 primitive _Bind
-type _Time is (U32, U32, U32, U32, U32, U32, U32, U8, I32)
+
+//type _Time is (U32, U32, U32, U32, U32, U32, U32, U8, I32)
+struct _Time
+  var year: U32 = 0
+  var month: U32 = 0
+  var day: U32 = 0
+  var hour: U32 = 0
+  var minute: U32 = 0
+  var second: U32 = 0
+  var second_part: ULong = 0
+  var neg: U8 = 0
+  var time_type: I32 = 0
 
 primitive _Return
   fun ok(): ISize => 0
@@ -23,7 +34,7 @@ type QueryParam is
   | U8 | U16 | U32 | U64 | ULong | USize
   | F32 | F64
   | String
-  | Date
+  | PosixDate
   | Array[U8]
   )
 
@@ -37,14 +48,14 @@ type QueryResult is
   | FloatQueryResult
   | String
   | Blob
-  | Date
+  | PosixDate
   | None
   )
 
 // Do this here as mysql_server_init() is not thread-safe. This avoids
 // the need for a global mutex around mysql_init().
 primitive _Init
-  fun _init(env: Env) =>
+  fun _init() =>
     let c: I32 = 0
     @mysql_server_init[None](c, Pointer[Pointer[U8]], Pointer[Pointer[U8]])
 
@@ -69,7 +80,7 @@ class MySQL
     let port' = match port | let p: U16    => p           else 0           end
     let sock' = match sock | let s: String => s.cstring() else Pointer[U8] end
     let flags: USize = 0
-    _mysql_init()
+    _mysql_init()?
     let r = @mysql_real_connect[Pointer[_MySQL]](
       _mysql, host', user', pass', db', port', sock', flags
     )
@@ -84,13 +95,13 @@ class MySQL
               pass: (String | None) = None,
               db:   (String | None) = None,
               port: (U16 | None)    = None): MySQL ? =>
-    connect(host, user, pass, db, port, None)
+    connect(host, user, pass, db, port, None)?
 
   fun ref unix(sock: String,
                user: (String | None) = None,
                pass: (String | None) = None,
                db:   (String | None) = None): MySQL ? =>
-    connect(None, user, pass, db, None, sock)
+    connect(None, user, pass, db, None, sock)?
 
   fun ping(): Bool =>
     @mysql_ping[I32](_mysql) == 0
@@ -115,7 +126,7 @@ class MySQL
     @mysql_errno[U32](_mysql)
 
   fun error_message(): String =>
-    Util.from_cstring(@mysql_error[Pointer[U8] iso^](_mysql))
+    Util.copy_cpointer(@mysql_error[Pointer[U8] iso^](_mysql))
 
   fun ref _mysql_init() ? =>
     _mysql = @mysql_init[Pointer[_MySQL]](_mysql)
@@ -124,6 +135,8 @@ class MySQL
       error
     end
 
-  fun _final() =>
+  fun dispose() =>
     @mysql_close[None](_mysql)
-    @mysql_thread_end[None]()
+
+  fun library_end() =>
+    @mysql_server_end[None]()

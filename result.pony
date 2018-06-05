@@ -58,25 +58,25 @@ class Result
 
   fun ref fetch_map(): (Map[String, QueryResult] | None) ? =>
     let that = this
-    let f = lambda(n: USize)(that): Map[String, QueryResult] ? =>
-      that._map_row(n)
-    end
-    _fetch_with[Map[String, QueryResult]](f)
+    let f = {(n: USize)(that): Map[String, QueryResult] ? =>
+      that._map_row(n)?
+    }
+    _fetch_with[Map[String, QueryResult]](f)?
 
   fun ref array_rows(): ResultArrayIter =>
     ResultArrayIter._create(this, _notify)
 
   fun ref fetch_array(): (Array[QueryResult] | None) ? =>
     let that = this
-    let f = lambda(n: USize)(that): Array[QueryResult] ? =>
-      that._array_row(n)
-    end
-    _fetch_with[Array[QueryResult]](f)
+    let f = {(n: USize)(that): Array[QueryResult] ? =>
+      that._array_row(n)?
+    }
+    _fetch_with[Array[QueryResult]](f)?
 
   fun _fetch_with[T](f: {(USize): T ?}): (T | None) ? =>
     match @mysql_stmt_fetch[ISize](_stmt)
     | _Return.no_data() => None
-    | _Return.ok()      => f(@mypony_bind_count[USize](_result))
+    | _Return.ok()      => f(@mypony_bind_count[USize](_result))?
     | _Return.data_truncated() =>
         _notify.fail(Error("fetch", "data truncated"))
         error
@@ -89,11 +89,11 @@ class Result
     let row = Map[String, QueryResult]
     for i in Range(0, n) do
       let field = @mysql_fetch_field_direct[Pointer[_Field]](_res, i)
-      let name = Util.from_cstring(@mypony_field_name[Pointer[U8] iso^](field))
+      let name = Util.copy_cpointer(@mypony_field_name[Pointer[U8] iso^](field))
       if @mypony_bind_is_null[Bool](_result, i) then
         row(name) = None
       else
-        row(name) = _convert_result(i)
+        row(name) = _convert_result(i)?
       end
     end
     row
@@ -104,7 +104,7 @@ class Result
       if @mypony_bind_is_null[Bool](_result, i) then
         row.push(None)
       else
-        row.push(_convert_result(i))
+        row.push(_convert_result(i)?)
       end
     end
     row
@@ -112,26 +112,29 @@ class Result
   fun _convert_result(i: USize): QueryResult ? =>
     let t = @mypony_bind_buffer_type[USize](_result, i)
     if @mypony_bind_is_unsigned[Bool](_result, i) then
-      _convert_unsigned(t, i)
+      _convert_unsigned(t, i)?
     else
-      _convert(t, i)
+      _convert(t, i)?
     end
 
-  fun _convert_unsigned(t: USize, i: USize): (UnsignedQueryResult | Date) ? =>
+  fun _convert_unsigned(t: USize, i: USize): (UnsignedQueryResult | PosixDate) ? =>
     match t
     | _T.tiny() | _T.year()  => @mypony_u8_result[U8](_result, i)
     | _T.short()             => @mypony_u16_result[U16](_result, i)
     | _T.int24() | _T.long() => @mypony_u32_result[U32](_result, i)
     | _T.long()              => @mypony_u32_result[U32](_result, i)
     | _T.long_long()         => @mypony_u64_result[U64](_result, i)
-    | _T.timestamp()         => _date(@mypony_time_result[_Time](_result, i))
+    | _T.timestamp()         =>
+        let time = _Time
+        @mypony_time_result[None](_result, i, time)
+        _date(consume time)
     else
       _notify.fail(Error("fetch", "invalid unsigned type: " + t.string()))
       error
     end
 
   fun _convert(t: USize, i: USize):
-      (SignedQueryResult | FloatQueryResult | String | Blob | Date) ? =>
+      (SignedQueryResult | FloatQueryResult | String | Blob | PosixDate) ? =>
     match t
     | _T.tiny() | _T.year() =>
         @mypony_i8_result[I8](_result, i)
@@ -148,38 +151,40 @@ class Result
     | _T.double() =>
         @mypony_f64_result[F64](_result, i)
     | _T.date() | _T.time() | _T.datetime() | _T.timestamp() =>
-        _date(@mypony_time_result[_Time](_result, i))
+        let time = _Time
+        @mypony_time_result[None](_result, i, time)
+        _date(consume time)
     | _T.decimal() | _T.new_decimal() | _T.string() | _T.var_string()
     | _T.bit() =>
         var len: USize = 0
         let cs =
           @mypony_string_result[Pointer[U8] iso^](_result, addressof len, i)
-        Util.from_cstring(consume cs, len)
+        Util.copy_cpointer(consume cs, len)
     | _T.tiny_blob() | _T.medium_blob() | _T.long_blob() | _T.blob() =>
         var len: USize = 0
         let cs =
           @mypony_string_result[Pointer[U8] iso^](_result, addressof len, i)
-        Util.from_cstring(consume cs, len).array()
+        Util.copy_cpointer(consume cs, len).array()
     else
       _notify.fail(Error("fetch", "unknown type " + t.string()))
       error
     end
 
-  fun _date(tm: _Time): Date =>
-    let date = Date()
-    date.year  = tm._1.i32()
-    date.month = tm._2.i32()
-    date.day_of_month = tm._3.i32()
-    date.hour  = tm._4.i32()
-    date.min   = tm._5.i32()
-    date.sec   = tm._6.i32()
+  fun _date(tm: _Time): PosixDate =>
+    let date = PosixDate()
+    date.year  = tm.year.i32()
+    date.month = tm.month.i32()
+    date.day_of_month = tm.day.i32()
+    date.hour  = tm.hour.i32()
+    date.min   = tm.minute.i32()
+    date.sec   = tm.second.i32()
     date
 
   fun errno(): U32 =>
     @mysql_stmt_errno[U32](_stmt)
 
   fun error_message(): String =>
-    Util.from_cstring(@mysql_stmt_error[Pointer[U8] iso^](_stmt))
+    Util.copy_cpointer(@mysql_stmt_error[Pointer[U8] iso^](_stmt))
 
 class ResultMapIter
   let _result: Result
@@ -198,7 +203,7 @@ class ResultMapIter
 
   fun ref next(): Map[String, QueryResult] ? =>
     _cur = _cur + 1
-    let row = _result.fetch_map()
+    let row = _result.fetch_map()?
     match row
     | let m: Map[String, QueryResult] => m
     else
@@ -223,7 +228,7 @@ class ResultArrayIter
 
   fun ref next(): Array[QueryResult] ? =>
     _cur = _cur + 1
-    let row = _result.fetch_array()
+    let row = _result.fetch_array()?
     match row
     | let r: Array[QueryResult] => r
     else

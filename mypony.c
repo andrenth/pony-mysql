@@ -264,10 +264,10 @@ mypony_string_result(struct mypony_bind *result, unsigned long *len,
     return result->bind[i].buffer;
 }
 
-MYSQL_TIME
-mypony_time_result(struct mypony_bind *result, unsigned long i)
+void
+mypony_time_result(struct mypony_bind *result, unsigned long i, MYSQL_TIME *t)
 {
-    return *(MYSQL_TIME *)result->bind[i].buffer;
+    memcpy(t, result->bind[i].buffer, sizeof(MYSQL_TIME));
 }
 
 const char *

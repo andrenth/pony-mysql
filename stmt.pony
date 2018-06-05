@@ -25,13 +25,13 @@ class Stmt
       error
     end
     if num_args > 0 then
-      _bind_params(args)
+      _bind_params(args)?
     end
     if @mysql_stmt_execute[ISize](_stmt) != 0 then
-      _execute_error()
+      _execute_error()?
     end
     if @mypony_bind_result[ISize](_stmt, _res, _result) != 0 then
-      _execute_error()
+      _execute_error()?
     end
     Result._create(_stmt, _notify, _params, _result, _res)
 
@@ -44,7 +44,7 @@ class Stmt
     @mysql_stmt_errno[U32](_stmt)
 
   fun error_message(): String =>
-    Util.from_cstring(@mysql_stmt_error[Pointer[U8] iso^](_stmt))
+    Util.copy_cpointer(@mysql_stmt_error[Pointer[U8] iso^](_stmt))
 
   fun _bind_params(args: Array[QueryParam]) ? =>
     for (i, arg) in args.pairs() do
@@ -73,29 +73,23 @@ class Stmt
           @mypony_double_param[None](_params, x, i)
       | let x: String =>
           @mypony_string_param[None](_params, x.cstring(), x.size(), i)
-      | let d: Date =>
+      | let d: PosixDate =>
           @mypony_time_param[None](
             _params, d.year.u32(), d.month.u32(), d.day_of_month.u32(),
             d.hour.u32(), d.min.u32(), d.sec.u32(), i
           )
       | let b: Array[U8] =>
-          @mypony_blob_param[None](_params, b.cstring(), b.size(), i)
-      else
-        _notify.fail(Error("execute", "unsupported parameter type", 2036))
-        error
+          @mypony_blob_param[None](_params, b.cpointer(), b.size(), i)
       end
     end
     if @mypony_stmt_bind_param[I8](_stmt, _params) != 0 then
-      _execute_error()
+      _execute_error()?
     end
 
   fun _execute_error() ? =>
     _notify.fail(Error("execute", error_message(), errno()))
     error
 
-  fun close() =>
-    @mysql_free_result[None](_res)
-    @mysql_stmt_close[None](_stmt)
-
   fun dispose() =>
-    close()
+    @mysql_stmt_free_result[None](_stmt)
+    @mysql_stmt_close[None](_stmt)
